@@ -83,8 +83,6 @@ int isRightAssociative(char op)
     return false;
 }
 
-
-
 bool hasHigherPrecedence(char op1, char op2)
 {
     int op1weight = getOperatorWeight(op1);
