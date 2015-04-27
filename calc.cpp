@@ -149,7 +149,7 @@ struct op_s
 	{'@', 6,   ASSOC_LEFT,     0, eval_lor}
 };
 
-struct op_s *getop(char ch)
+struct op_s* getop(char ch)
 {
 	int i;
 	for (i = 0; i < sizeof ops / sizeof ops[0]; ++i)
@@ -163,10 +163,7 @@ struct op_s *getop(char ch)
 }
 
 std::stack<struct op_s*> opstack;
-int nopstack = 0;
-
 std::stack<int> numstack;
-int nnumstack = 0;
 
 void push_opstack(struct op_s* op)
 {
@@ -177,6 +174,34 @@ struct op_s* pop_opstack()
 {
 	struct op_s* op = opstack.top();
 	opstack.pop();
+
+	switch (op->op)
+	{
+		case '(':
+		case ')':
+			break;
+		case '#':
+			std::cout << " +";
+			break;
+		case '_':
+			std::cout << " -";
+			break;
+		case '$':
+			std::cout << " &&";
+			break;
+		case '@':
+			std::cout << " ||";
+			break;
+		case '<':
+			std::cout << " <<";
+			break;
+		case '>':
+			std::cout << " >>";
+			break;
+		default:
+			std::cout << ' ' << op->op;
+	}
+
 	return op;
 }
 
@@ -272,121 +297,140 @@ int main(int argc, char *argv[])
 	int n1, n2;
 	struct op_s *lastop = &startop;
 
-	std::getline(std::cin, expr);
-	for (int i = 0; i < expr.size(); ++i)
+	while (std::getline(std::cin, expr))
 	{
-		std::cout << "reading " << expr[i] << std::endl;
-
-		if (i + 1 < expr.size())
+		std::cout << "Postfix Exp:";
+		for (int i = 0; i < expr.size(); ++i)
 		{
-			if (expr[i] == '&' && expr[i] == expr[i + 1])
-			{
-				std::cout << "logical AND found" << std::endl;
+			//std::cout << "reading " << expr[i] << std::endl;
 
-				expr[i] = '$';
-				expr[i + 1] = ' ';
-			}
-			else if (expr[i] == '|' && expr[i] == expr[i + 1])
+			if (i + 1 < expr.size())
 			{
-				std::cout << "logical OR found" << std::endl;
-
-				expr[i] = '@';
-				expr[i + 1] = ' ';
-			}
-		}
-
-		if (!tstart)
-		{
-			if ((op = getop(expr[i])))
-			{
-				if (lastop && (lastop == &startop || lastop->op != ')'))
+				if (expr[i] == '&' && expr[i] == expr[i + 1])
 				{
-					switch (op->op)
-					{
-						case '+':
-							op = getop('#');
-							break;
-						case '-':
-							op = getop('_');
-							break;
-						case '<':
-						case '>':
-							continue;
-						case '(':
-							break;
-						default:
-							if (!op->unary)
-							{
-								std::cerr << "ERROR: Illegal use of binary operator (" << op->op << ")" << std::endl;
-								exit(EXIT_FAILURE);
-							}
-					}
+					expr[i] = '$';
+					expr[i + 1] = ' ';
 				}
-
-				std::cout << "filter complete" << std::endl;
-
-				shunt_op(op);
-				lastop = op;
+				else if (expr[i] == '|' && expr[i] == expr[i + 1])
+				{
+					expr[i] = '@';
+					expr[i + 1] = ' ';
+				}
 			}
-			else if (std::isdigit(expr[i]))
+
+			if (!tstart)
 			{
-				tstart = expr[i];
+				if ((op = getop(expr[i])))
+				{
+					if (lastop && (lastop == &startop || lastop->op != ')'))
+					{
+						switch (op->op)
+						{
+							case '+':
+								op = getop('#');
+								break;
+							case '-':
+								op = getop('_');
+								break;
+							case '<':
+							case '>':
+								continue;
+							case '(':
+								break;
+							default:
+								if (!op->unary)
+								{
+									std::cerr << "ERROR: Illegal use of binary operator (" << op->op << ")" << std::endl;
+									exit(EXIT_FAILURE);
+								}
+						}
+					}
+
+					//std::cout << "filter complete" << std::endl;
+
+					shunt_op(op);
+					lastop = op;
+				}
+				else if (std::isdigit(expr[i]))
+				{
+					tstart = expr[i];
+				}
 			}
-			else if (!std::isspace(expr[i]))
+			else
 			{
-				//std::cerr << "ERROR: Syntax error" << std::endl;
-				//return EXIT_FAILURE;
+				if (isspace(expr[i]))
+				{
+					push_numstack(std::atoi(&tstart));
+
+					std::cout << ' ' << numstack.top();
+
+					tstart = 0;
+					lastop = NULL;
+				}
+				else if ((op = getop(expr[i])))
+				{
+					push_numstack(std::atoi(&tstart));
+
+					std::cout << ' ' << numstack.top();
+
+					tstart = 0;
+					shunt_op(op);
+					lastop = op;
+				}
+				else if (!std::isdigit(expr[i]))
+				{
+					std::cerr << "ERROR: Syntax error" << std::endl;
+					return EXIT_FAILURE;
+				}
 			}
 		}
-		else
+		if (tstart)
 		{
-			if (isspace(expr[i]))
-			{
-				push_numstack(std::atoi(&tstart));
-				tstart = 0;
-				lastop = NULL;
-			}
-			else if ((op = getop(expr[i])))
-			{
-				push_numstack(std::atoi(&tstart));
-				tstart = 0;
-				shunt_op(op);
-				lastop = op;
-			}
-			else if (!std::isdigit(expr[i]))
-			{
-				std::cerr << "ERROR: Syntax error" << std::endl;
-				return EXIT_FAILURE;
-			}
-		}
-	}
-	if (tstart)
-	{
-		push_numstack(std::atoi(&tstart));
-	}
+			push_numstack(std::atoi(&tstart));
 
-	while (opstack.size() > 0)
-	{
-		op = pop_opstack();
-		n1 = pop_numstack();
-		if (op->unary)
+			std::cout << ' ' << numstack.top();
+		}
+
+		while (opstack.size() > 0)
 		{
-			push_numstack(op->eval(n1, 0));
+			op = pop_opstack();
+			n1 = pop_numstack();
+			if (op->unary)
+			{
+				push_numstack(op->eval(n1, 0));
+			}
+			else
+			{
+				n2 = pop_numstack();
+				push_numstack(op->eval(n2, n1));
+			}
 		}
-		else
+		if (numstack.size() != 1)
 		{
-			n2 = pop_numstack();
-			push_numstack(op->eval(n2, n1));
+			std::cerr << "ERROR: Number stack has " << numstack.size() << " elements after evaluation. Should be 1." << std::endl;
+
+			std::cerr << "opstack: [ ";
+			while (!opstack.empty())
+			{
+				std::cerr << pop_opstack() << ' ';
+			}
+			std::cerr << ']' << std::endl;
+
+			std::cerr << "numstack: [ ";
+			while (!numstack.empty())
+			{
+				std::cerr << pop_numstack() << ' ';
+			}
+			std::cerr << ']' << std::endl;
+
+			return EXIT_FAILURE;
 		}
-	}
-	if (numstack.size() != 1)
-	{
-		std::cerr << "ERROR: Number stack has " << numstack.size() << " elements after evaluation. Should be 1." << std::endl;
-		return EXIT_FAILURE;
-	}
 
-	std::cout << numstack.top() << std::endl;
+		std::cout << std::endl;
+		std::cout << "RESULT: " << pop_numstack() << std::endl;
 
+		tstart = 0;
+	}
 	return EXIT_SUCCESS;
 }
 
