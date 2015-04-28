@@ -2,6 +2,9 @@
 #include <iomanip>
 #include <cstdlib>
 #include <cstring>
+#ifndef NO_PROCESS
+#include <sstream>
+#endif
 #include <cmath>
 #include <stack>
 
@@ -145,13 +148,13 @@ double eval_exp(double a1, double a2)
 
 double eval_log(double a1, double a2)
 {
-	
+
 	if (a1 < 0)
 	{
 		std::cerr << "ERROR: Logarithm of a negative number is undefined." << std::endl;
 		//std::exit(EXIT_FAILURE);
 	}
-	
+
 	return std::log(a1);
 }
 
@@ -162,13 +165,13 @@ double eval_pow(double a1, double a2)
 
 double eval_sqrt(double a1, double a2)
 {
-	
+
 	if (a1 < 0)
 	{
 		std::cerr << "ERROR: Root squaring a negative number." << std::endl;
 		//std::exit(EXIT_FAILURE);
 	}
-	
+
 	return std::sqrt(a1);
 }
 
@@ -234,6 +237,39 @@ struct op_s* getop(char ch)
 std::stack<struct op_s*> opstack;
 std::stack<double> numstack;
 
+#ifndef NO_PROCESS
+std::ostream& operator<<(std::ostream& stream, const struct op_s* s)
+{
+	return stream << s->op;
+}
+
+// Helper function to print the stack
+template<typename T >
+void print(const std::stack<T>& stack)
+{
+	struct cheat : std::stack<T>
+	{
+		using std::stack<T>::c;
+	};
+
+	const auto& elements = static_cast<const cheat&>(stack).c;
+	for (const auto& element : elements)
+	{
+		std::cout << element << ' ' ;
+	}
+}
+
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+	std::ostringstream out;
+	out << std::fixed << std::setprecision(n) << a_value;
+	return out.str();
+}
+
+std::string postfix;
+#endif
+
 void push_opstack(struct op_s* op)
 {
 	opstack.push(op);
@@ -244,6 +280,7 @@ struct op_s* pop_opstack()
 	struct op_s* op = opstack.top();
 	opstack.pop();
 
+#ifdef NO_PROCESS
 	switch (op->op)
 	{
 		case '(':
@@ -279,6 +316,44 @@ struct op_s* pop_opstack()
 		default:
 			std::cout << ' ' << op->op;
 	}
+#else
+	postfix += ' ';
+	switch (op->op)
+	{
+		case '(':
+		case ')':
+			break;
+		case '#':
+			postfix += '+';
+			break;
+		case '_':
+			postfix += '-';
+			break;
+		case 'S':
+			postfix += "sin";
+			break;
+		case 'C':
+			postfix += "cos";
+			break;
+		case 'e':
+			postfix += "exp";
+			break;
+		case 'l':
+			postfix += "log";
+			break;
+		case 'p':
+			postfix += "pow";
+			break;
+		case 's':
+			postfix += "sqrt";
+			break;
+		case 'f':
+			postfix += "fabs";
+			break;
+		default:
+			postfix += op->op;
+	}
+#endif
 
 	return op;
 }
@@ -364,6 +439,18 @@ void shunt_op(struct op_s* op)
 		}
 	}
 	push_opstack(op);
+
+#ifndef NO_PROCESS
+	std::cout << " OPSTACK | [ ";
+	print<struct op_s*>(opstack);
+	std::cout << "]" << std::endl;
+
+	std::cout << "NUMSTACK | [ ";
+	print<double>(numstack);
+	std::cout << "]" << std::endl;
+
+	std::cout << std::endl;
+#endif
 }
 
 int main()
@@ -381,7 +468,11 @@ int main()
 		expr = new char[input.length() + 1];
 		std::strcpy(expr, input.c_str());
 
+#ifndef NO_PROCESS
+		postfix = "Postfix Exp:";
+#else
 		std::cout << "Postfix Exp:";
+#endif
 		for (int i = 0 ; *expr; ++expr, ++i)
 		{
 			//std::cout << "reading -> " << *expr << std::endl;
@@ -481,7 +572,12 @@ int main()
 
 					push_numstack(std::atof(tstart));
 
+#ifndef NO_PROCESS
+					postfix += ' ';
+					postfix += to_string_with_precision(numstack.top());
+#else
 					std::cout << std::fixed << std::setprecision(6) << ' ' << numstack.top();
+#endif
 
 					tstart = NULL;
 					lastop = NULL;
@@ -492,7 +588,12 @@ int main()
 
 					push_numstack(std::atof(tstart));
 
+#ifndef NO_PROCESS
+					postfix += ' ';
+					postfix += to_string_with_precision(numstack.top());
+#else
 					std::cout << std::fixed << std::setprecision(6) << ' ' << numstack.top();
+#endif
 
 					tstart = NULL;
 					shunt_op(op);
@@ -509,7 +610,12 @@ int main()
 		{
 			push_numstack(std::atof(tstart));
 
+#ifndef NO_PROCESS
+			postfix += ' ';
+			postfix += to_string_with_precision(numstack.top());
+#else
 			std::cout << std::fixed << std::setprecision(6) << ' ' << numstack.top();
+#endif
 		}
 
 		while (opstack.size() > 0)
@@ -548,6 +654,9 @@ int main()
 		}
 
 		std::cout << std::endl;
+#ifndef NO_PROCESS
+		std::cout << postfix << std::endl;
+#endif
 		std::cout << "RESULT: " << std::fixed << std::setprecision(6) << pop_numstack() << std::endl;
 
 		tstart = NULL;

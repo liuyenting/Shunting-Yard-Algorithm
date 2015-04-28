@@ -1,0 +1,1 @@
+After every inquiry, the operations that are performed by the calculator will display in groups. Each group contains the status of operator stack and the status of the number stack (which stores the numberic values). The postfix expression and evaluated result are enlisted at the end of the process.

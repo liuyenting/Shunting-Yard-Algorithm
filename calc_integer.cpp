@@ -166,6 +166,31 @@ struct op_s* getop(char ch)
 std::stack<struct op_s*> opstack;
 std::stack<int> numstack;
 
+#ifndef NO_PROCESS
+std::ostream& operator<<(std::ostream& os, const struct op_s* s)
+{
+    return os << s->op;
+}
+
+// Helper function to print the stack
+template<typename T >
+void print(const std::stack<T>& stack)
+{
+	struct cheat : std::stack<T>
+	{
+		using std::stack<T>::c;
+	};
+
+	const auto& elements = static_cast<const cheat&>(stack).c;
+	for(const auto& element : elements)
+	{
+		std::cout << element << ' ' ;
+	}
+}
+
+std::string postfix;
+#endif
+
 void push_opstack(struct op_s* op)
 {
 	opstack.push(op);
@@ -176,6 +201,7 @@ struct op_s* pop_opstack()
 	struct op_s* op = opstack.top();
 	opstack.pop();
 
+	#ifdef NO_PROCESS
 	switch (op->op)
 	{
 		case '(':
@@ -202,6 +228,35 @@ struct op_s* pop_opstack()
 		default:
 			std::cout << ' ' << op->op;
 	}
+	#else
+	postfix += ' ';
+	switch (op->op)
+	{
+		case '(':
+		case ')':
+			break;
+		case '#':
+			postfix += '+';
+			break;
+		case '_':
+			postfix += '-';
+			break;
+		case '$':
+			postfix += "&&";
+			break;
+		case '@':
+			postfix += "||";
+			break;
+		case '<':
+			postfix += "<<";
+			break;
+		case '>':
+			postfix += ">>";
+			break;
+		default:
+			postfix += op->op;
+	}
+	#endif
 
 	return op;
 }
@@ -287,6 +342,18 @@ void shunt_op(struct op_s* op)
 		}
 	}
 	push_opstack(op);
+
+	#ifndef NO_PROCESS
+	std::cout << " OPSTACK | [ ";
+	print<struct op_s*>(opstack);
+	std::cout << "]" << std::endl;
+	
+	std::cout << "NUMSTACK | [ ";
+	print<int>(numstack);
+	std::cout << "]" << std::endl;
+
+	std::cout << std::endl;
+	#endif
 }
 
 int main(int argc, char *argv[])
@@ -304,7 +371,11 @@ int main(int argc, char *argv[])
 		expr = new char[input.length() + 1];
 		std::strcpy(expr, input.c_str());
 
+		#ifndef NO_PROCESS
+		postfix = "Postfix Exp:";
+		#else
 		std::cout << "Postfix Exp:";
+		#endif
 		for (int i = 0 ; *expr; ++expr, ++i)
 		{
 			//std::cout << "reading " << *expr << std::endl;
@@ -367,7 +438,12 @@ int main(int argc, char *argv[])
 				{
 					push_numstack(std::atoi(tstart));
 
+					#ifndef NO_PROCESS
+					postfix += ' ';
+					postfix += std::to_string(numstack.top());
+					#else
 					std::cout << ' ' << numstack.top();
+					#endif
 
 					tstart = NULL;
 					lastop = NULL;
@@ -376,7 +452,12 @@ int main(int argc, char *argv[])
 				{
 					push_numstack(std::atoi(tstart));
 
+					#ifndef NO_PROCESS
+					postfix += ' ';
+					postfix += std::to_string(numstack.top());
+					#else
 					std::cout << ' ' << numstack.top();
+					#endif
 
 					tstart = NULL;
 					shunt_op(op);
@@ -393,7 +474,12 @@ int main(int argc, char *argv[])
 		{
 			push_numstack(std::atoi(tstart));
 
+			#ifndef NO_PROCESS
+			postfix += ' ';
+			postfix += std::to_string(numstack.top());
+			#else
 			std::cout << ' ' << numstack.top();
+			#endif
 		}
 
 		while (opstack.size() > 0)
@@ -432,6 +518,9 @@ int main(int argc, char *argv[])
 		}
 
 		std::cout << std::endl;
+		#ifndef NO_PROCESS
+		std::cout << postfix << std::endl;
+		#endif
 		std::cout << "RESULT: " << pop_numstack() << std::endl;
 
 		tstart = 0;
