@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cstdlib>
-
+#include <cstring>
 #include <stack>
 
 /*
@@ -10,7 +10,8 @@
  */
 int eval_uplus(int a1, int a2)
 {
-	return std::abs(a1);
+	//return std::abs(a1);
+	return a1;
 }
 
 int eval_uminus(int a1, int a2)
@@ -290,37 +291,41 @@ void shunt_op(struct op_s* op)
 
 int main(int argc, char *argv[])
 {
-	std::string expr;
-	char tstart = 0;
+	char *expr;
+	char *tstart = NULL;
 	struct op_s startop = {'X', 0, ASSOC_NONE, 0, NULL};    /* Dummy operator to mark start */
 	struct op_s *op = NULL;
 	int n1, n2;
 	struct op_s *lastop = &startop;
 
-	while (std::getline(std::cin, expr))
+	std::string input;
+	while (std::getline(std::cin, input))
 	{
-		std::cout << "Postfix Exp:";
-		for (int i = 0; i < expr.size(); ++i)
-		{
-			//std::cout << "reading " << expr[i] << std::endl;
+		expr = new char[input.length() + 1];
+		std::strcpy(expr, input.c_str());
 
-			if (i + 1 < expr.size())
+		std::cout << "Postfix Exp:";
+		for (int i = 0 ; *expr; ++expr, ++i)
+		{
+			//std::cout << "reading " << *expr << std::endl;
+
+			if (i + 1 < input.length())
 			{
-				if (expr[i] == '&' && expr[i] == expr[i + 1])
+				if (*expr == '&' && *expr == *(expr + 1))
 				{
-					expr[i] = '$';
-					expr[i + 1] = ' ';
+					*expr = '$';
+					*(expr + 1) = ' ';
 				}
-				else if (expr[i] == '|' && expr[i] == expr[i + 1])
+				else if (*expr == '|' && *expr == *(expr + 1))
 				{
-					expr[i] = '@';
-					expr[i + 1] = ' ';
+					*expr = '@';
+					*(expr + 1) = ' ';
 				}
 			}
 
 			if (!tstart)
 			{
-				if ((op = getop(expr[i])))
+				if ((op = getop(*expr)))
 				{
 					if (lastop && (lastop == &startop || lastop->op != ')'))
 					{
@@ -351,33 +356,33 @@ int main(int argc, char *argv[])
 					shunt_op(op);
 					lastop = op;
 				}
-				else if (std::isdigit(expr[i]))
+				else if (std::isdigit(*expr))
 				{
-					tstart = expr[i];
+					tstart = expr;
 				}
 			}
 			else
 			{
-				if (isspace(expr[i]))
+				if (isspace(*expr))
 				{
-					push_numstack(std::atoi(&tstart));
+					push_numstack(std::atoi(tstart));
 
 					std::cout << ' ' << numstack.top();
 
-					tstart = 0;
+					tstart = NULL;
 					lastop = NULL;
 				}
-				else if ((op = getop(expr[i])))
+				else if ((op = getop(*expr)))
 				{
-					push_numstack(std::atoi(&tstart));
+					push_numstack(std::atoi(tstart));
 
 					std::cout << ' ' << numstack.top();
 
-					tstart = 0;
+					tstart = NULL;
 					shunt_op(op);
 					lastop = op;
 				}
-				else if (!std::isdigit(expr[i]))
+				else if (!std::isdigit(*expr))
 				{
 					std::cerr << "ERROR: Syntax error" << std::endl;
 					return EXIT_FAILURE;
@@ -386,7 +391,7 @@ int main(int argc, char *argv[])
 		}
 		if (tstart)
 		{
-			push_numstack(std::atoi(&tstart));
+			push_numstack(std::atoi(tstart));
 
 			std::cout << ' ' << numstack.top();
 		}
